@@ -9,10 +9,12 @@ import dan200.computercraft.api.turtle.TurtleSide
 import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.loop
 import net.minecraft.util.Direction
+import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.server.ServerWorld
 import net.minecraft.world.server.TicketType
 import net.minecraftforge.common.util.Constants
+import java.util.concurrent.TimeUnit
 
 @OptIn(ExperimentalStdlibApi::class)
 class ChunkLoadingPeripheral(
@@ -28,7 +30,10 @@ class ChunkLoadingPeripheral(
     private companion object {
 
         val methodNames = LuaMethod.values().map { it.luaName }.toTypedArray()
-        val ticketType = TicketType.create("${Main.MOD_ID}:loaded", compareBy(ChunkPos::asLong))
+
+        val temporaryLifespan = (TimeUnit.SECONDS.toMillis(20L) * 20).toInt()
+        val permanentTicket: TicketType<ChunkPos> = TicketType.create("${Main.MOD_ID}:permanent", compareBy(ChunkPos::asLong))
+        val temporaryTicket: TicketType<ChunkPos> = TicketType.create("${Main.MOD_ID}:temporary", compareBy(ChunkPos::asLong), temporaryLifespan)
 
         const val ACTIVE_NBT = "active"
 
@@ -106,45 +111,59 @@ class ChunkLoadingPeripheral(
 
     private val forcedChunks = HashSet<ChunkPos>()
 
-    private var prevDir: Direction? = null
-    private var prevChunk: ChunkPos? = null
+    private var currentDir: Direction? = null
+    private var currentPos: BlockPos? = null
+    private var currentChunkStatus: TurtleChunkForceStatus? = null
 
-    private fun getChunksToForce(chunk: ChunkPos, facingDir: Direction): Set<ChunkPos> {
-        return buildSet(2) {
-            add(chunk)
-            if (facingDir.axis.isHorizontal) {
-                add(ChunkPos(chunk.asBlockPos().offset(facingDir, 16)))
+    private data class TurtleChunkForceStatus(val chunk: ChunkPos, val direction: Direction, val atEdgeOfChunk: Boolean) {
+
+        fun getChunksToForce(): Set<ChunkPos> {
+            return if (!atEdgeOfChunk) {
+                setOf(chunk)
+            } else {
+                setOf(chunk, chunk.offset(direction))
             }
         }
+
+    }
+
+    private fun computeChunkStatus(pos: BlockPos, direction: Direction): TurtleChunkForceStatus {
+        return TurtleChunkForceStatus(
+            chunk = ChunkPos(pos),
+            direction = direction,
+            atEdgeOfChunk = pos.isAtEdgeOfChunk(direction)
+        )
     }
 
     internal fun serverTick() {
         val computerId = computerId.value
         if (computerId >= 0) {
-            val prevChunk = prevChunk
-            val prevDir = prevDir
-            if (prevChunk == null) {
+            val prevPos = currentPos
+            val prevDir = currentDir
+            if (prevPos == null) {
                 println("$computerId is initializing!")
                 LoadedChunkData.forWorld(turtle.world as ServerWorld).clear()
             }
-            val currentPos: = turtle.position
-            val currentChunk = ChunkPos(currentPos)
-            val currentDir = turtle.direction
-            if (currentChunk != prevChunk || currentDir != prevDir) {
-                val chunksToForce = getChunksToForce(currentChunk, currentDir)
-                val chunksToUnForce = (if (prevChunk == null || prevDir == null) emptySet() else getChunksToForce(prevChunk, prevDir)) - chunksToForce
+            val newPos = turtle.position
+            val newDir = turtle.direction
 
-                println("$turtle moved from $prevChunk[$prevDir] to $currentPos[$currentDir]")
-                if (active) {
-                    for (chunk in chunksToForce) {
-                        setChunkForceStatus(turtle.world as ServerWorld, chunk, computerId, true)
-                    }
-                    for (chunk in chunksToUnForce) {
-                        setChunkForceStatus(turtle.world as ServerWorld, chunk, computerId, false)
-                    }
-                }
-                this.prevChunk = currentChunk
-                this.prevDir = currentDir
+            val prevStatus: TurtleChunkForceStatus? = currentChunkStatus
+            val newStatus: TurtleChunkForceStatus
+
+            if (newPos != prevPos || newDir != prevDir) {
+                currentPos = newPos
+                currentDir = newDir
+                newStatus = computeChunkStatus(newPos, newDir)
+            } else {
+                newStatus = prevStatus ?: computeChunkStatus(newPos, newDir)
+            }
+
+            if (newStatus != prevStatus) {
+                currentChunkStatus = newStatus
+                // recalc chunk force here
+                val prevChunks = prevStatus?.getChunksToForce() ?: emptySet()
+                val newChunks = newStatus.getChunksToForce()
+
             }
         }
     }
@@ -154,12 +173,12 @@ class ChunkLoadingPeripheral(
         if (forced) {
             if (data.add(chunk, computerId)) {
                 println("forcing $chunk")
-                world.chunkProvider.registerTicket(ticketType, chunk, 2, chunk)
+                world.chunkProvider.registerTicket(permanentTicket, chunk, 2, chunk)
             }
         } else {
             if (data.remove(chunk, computerId)) {
                 println("unforcing $chunk")
-                world.chunkProvider.releaseTicket(ticketType, chunk, 2, chunk)
+                world.chunkProvider.releaseTicket(permanentTicket, chunk, 2, chunk)
             }
         }
     }

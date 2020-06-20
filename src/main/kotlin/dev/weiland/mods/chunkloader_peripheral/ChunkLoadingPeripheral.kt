@@ -11,6 +11,8 @@ import kotlinx.atomicfu.loop
 import net.minecraft.util.Direction
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
+import net.minecraft.util.text.StringTextComponent
+import net.minecraft.world.World
 import net.minecraft.world.server.ServerWorld
 import net.minecraft.world.server.TicketType
 import net.minecraftforge.common.util.Constants
@@ -27,7 +29,7 @@ class ChunkLoadingPeripheral(
         SET_ACTIVE("setActive")
     }
 
-    private companion object {
+    companion object {
 
         val methodNames = LuaMethod.values().map { it.luaName }.toTypedArray()
 
@@ -35,8 +37,9 @@ class ChunkLoadingPeripheral(
         val permanentTicket: TicketType<ChunkPos> = TicketType.create("${Main.MOD_ID}:permanent", compareBy(ChunkPos::asLong))
         val temporaryTicket: TicketType<ChunkPos> = TicketType.create("${Main.MOD_ID}:temporary", compareBy(ChunkPos::asLong), temporaryLifespan)
 
-        const val ACTIVE_NBT = "active"
+        const val TICKET_DISTANCE = 2
 
+        const val ACTIVE_NBT = "active"
     }
 
     override fun detach(computer: IComputerAccess) {
@@ -112,76 +115,132 @@ class ChunkLoadingPeripheral(
     private val forcedChunks = HashSet<ChunkPos>()
 
     private var currentDir: Direction? = null
+    private var currentWorld: ServerWorld? = null
     private var currentPos: BlockPos? = null
+
     private var currentChunkStatus: TurtleChunkForceStatus? = null
 
-    private data class TurtleChunkForceStatus(val chunk: ChunkPos, val direction: Direction, val atEdgeOfChunk: Boolean) {
+    private data class TurtleChunkForceStatus(
+        val chunk: ChunkPos,
+        val direction: Direction,
+        val atEdgeOfChunk: Boolean
+    ) {
 
-        fun getChunksToForce(): Set<ChunkPos> {
-            return if (!atEdgeOfChunk) {
-                setOf(chunk)
-            } else {
-                setOf(chunk, chunk.offset(direction))
+        operator fun iterator(): Iterator<ChunkPos> = iterator {
+            yield(chunk)
+            if (atEdgeOfChunk) {
+                yield(chunk.offset(direction))
             }
         }
 
+        val chunks = if (atEdgeOfChunk) setOf(chunk, chunk.offset(direction)) else setOf(chunk)
+
+        companion object {
+            fun of(pos: BlockPos, direction: Direction): TurtleChunkForceStatus {
+                return TurtleChunkForceStatus(
+                    chunk = ChunkPos(pos),
+                    direction = direction,
+                    atEdgeOfChunk = pos.isAtEdgeOfChunk(direction)
+                )
+            }
+        }
     }
 
-    private fun computeChunkStatus(pos: BlockPos, direction: Direction): TurtleChunkForceStatus {
-        return TurtleChunkForceStatus(
-            chunk = ChunkPos(pos),
-            direction = direction,
-            atEdgeOfChunk = pos.isAtEdgeOfChunk(direction)
-        )
+    private fun World.debug(msg: String) {
+        world.server?.playerList?.sendMessage(StringTextComponent(msg))
     }
 
-    internal fun serverTick() {
+    private fun releaseChunk(world: ServerWorld, data: LoadedChunkData, chunk: ChunkPos, computerId: Int, cooldown: Boolean) {
+        if (data.remove(chunk, computerId)) {
+            if (cooldown) {
+                world.chunkProvider.registerTicket(temporaryTicket, chunk, TICKET_DISTANCE, chunk)
+            }
+            world.chunkProvider.releaseTicket(permanentTicket, chunk, TICKET_DISTANCE, chunk)
+            world.debug("Unforce $chunk $cooldown")
+        } else {
+            world.debug("fail unforce $chunk $cooldown")
+        }
+    }
+
+    private fun registerChunk(world: ServerWorld, data: LoadedChunkData, chunk: ChunkPos, computerId: Int) {
+        if (data.add(chunk, computerId)) {
+            world.chunkProvider.registerTicket(permanentTicket, chunk, TICKET_DISTANCE, chunk)
+            world.debug("Force $chunk")
+        }
+    }
+
+    internal fun serverTick(world: ServerWorld) {
         val computerId = computerId.value
         if (computerId >= 0) {
-            val prevPos = currentPos
-            val prevDir = currentDir
-            if (prevPos == null) {
-                println("$computerId is initializing!")
-                LoadedChunkData.forWorld(turtle.world as ServerWorld).clear()
-            }
-            val newPos = turtle.position
-            val newDir = turtle.direction
-
-            val prevStatus: TurtleChunkForceStatus? = currentChunkStatus
-            val newStatus: TurtleChunkForceStatus
-
-            if (newPos != prevPos || newDir != prevDir) {
-                currentPos = newPos
-                currentDir = newDir
-                newStatus = computeChunkStatus(newPos, newDir)
+            if (!active) {
+                currentWorld = null
+                currentPos = null
+                currentDir = null
+                currentChunkStatus = null
+                for (chunk in forcedChunks) {
+                    releaseChunk(world, LoadedChunkData.forWorld(world), chunk, computerId, false)
+                }
             } else {
-                newStatus = prevStatus ?: computeChunkStatus(newPos, newDir)
-            }
+                val prevWorld = currentWorld
+                if (prevWorld == null) {
+                    println("turtle $computerId initializing")
+                }
+                currentWorld = world
 
-            if (newStatus != prevStatus) {
-                currentChunkStatus = newStatus
-                // recalc chunk force here
-                val prevChunks = prevStatus?.getChunksToForce() ?: emptySet()
-                val newChunks = newStatus.getChunksToForce()
+                val prevChunkStatus: TurtleChunkForceStatus?
+                val prevPos: BlockPos?
+                val prevDir: Direction?
 
+                if (prevWorld != null && prevWorld !== world) {
+                    // dimension teleport, un-force old chunks immediately
+                    val data = LoadedChunkData.forWorld(prevWorld)
+                    for (chunk in forcedChunks) {
+                        releaseChunk(prevWorld, data, chunk, computerId, false)
+                    }
+                    forcedChunks.clear()
+                    prevChunkStatus = null
+                    prevPos = null
+                    prevDir = null
+                } else {
+                    prevChunkStatus = currentChunkStatus
+                    prevPos = currentPos
+                    prevDir = currentDir
+                }
+
+                val newPos = turtle.position
+                val newDir = turtle.direction
+
+                val newChunkStatus: TurtleChunkForceStatus
+                if (newPos != prevPos || newDir != prevDir) {
+                    currentPos = newPos
+                    currentDir = newDir
+                    newChunkStatus = TurtleChunkForceStatus.of(newPos, newDir)
+                } else {
+                    newChunkStatus = prevChunkStatus ?: TurtleChunkForceStatus.of(newPos, newDir)
+                }
+
+                if (newChunkStatus != prevChunkStatus) {
+                    currentChunkStatus = newChunkStatus
+
+                    val data = LoadedChunkData.forWorld(world)
+                    val newChunks = newChunkStatus.chunks
+
+                    for (chunk in newChunks) {
+                        if (chunk !in forcedChunks) {
+                            registerChunk(world, data, chunk, computerId)
+                            forcedChunks += chunk
+                        }
+                    }
+
+                    val it = forcedChunks.iterator()
+                    for (chunk in it) {
+                        if (chunk !in newChunks) {
+                            releaseChunk(world, data, chunk, computerId, true)
+                            it.remove()
+                        }
+                    }
+                }
             }
         }
     }
-
-    private fun setChunkForceStatus(world: ServerWorld, chunk: ChunkPos, computerId: Int, forced: Boolean) {
-        val data = LoadedChunkData.forWorld(world)
-        if (forced) {
-            if (data.add(chunk, computerId)) {
-                println("forcing $chunk")
-                world.chunkProvider.registerTicket(permanentTicket, chunk, 2, chunk)
-            }
-        } else {
-            if (data.remove(chunk, computerId)) {
-                println("unforcing $chunk")
-                world.chunkProvider.releaseTicket(permanentTicket, chunk, 2, chunk)
-            }
-        }
-    }
-
-
 }

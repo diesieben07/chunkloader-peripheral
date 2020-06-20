@@ -8,6 +8,7 @@ import net.minecraft.client.renderer.TransformationMatrix
 import net.minecraft.item.ItemStack
 import net.minecraft.item.Items
 import net.minecraft.util.ResourceLocation
+import net.minecraft.world.server.ServerWorld
 import net.minecraftforge.api.distmarker.Dist
 import net.minecraftforge.api.distmarker.OnlyIn
 
@@ -17,6 +18,7 @@ internal class ChunkLoadingTurtleUpgrade : AbstractTurtleUpgrade(
     TurtleUpgradeType.PERIPHERAL,
     Items.APPLE
 ) {
+
     @OnlyIn(Dist.CLIENT)
     override fun getModel(turtle: ITurtleAccess?, side: TurtleSide): TransformedModel {
         val xOffset = if (side == TurtleSide.LEFT) -0.40625f else 0.40625f
@@ -29,11 +31,12 @@ internal class ChunkLoadingTurtleUpgrade : AbstractTurtleUpgrade(
     }
 
     override fun update(turtle: ITurtleAccess, side: TurtleSide) {
-        if (!turtle.world.isRemote) {
-            (turtle.getPeripheral(side) as? ChunkLoadingPeripheral)?.serverTick()
-            if (turtle.world.gameTime % 40L == 0L) {
-                println("$turtle is alive")
-            }
+        val world = turtle.world
+        if (world is ServerWorld) {
+            (turtle.getPeripheral(side) as? ChunkLoadingPeripheral)?.serverTick(world)
+//            if (world.gameTime % 40L == 0L) {
+//                println("$turtle is alive")
+//            }
         }
     }
 

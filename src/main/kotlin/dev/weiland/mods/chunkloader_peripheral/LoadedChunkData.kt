@@ -36,11 +36,16 @@ internal class LoadedChunkData : WorldSavedData(NAME) {
      * Returns true if chunk ticket needs to be registered.
      */
     fun add(chunk: ChunkPos, computerId: Int): Boolean {
-        val changed = map.getOrPut(chunk, ::IntOpenHashSet).add(computerId)
+        var ids = map[chunk]
+        val newChunk = if (ids == null) {
+            ids = IntOpenHashSet().also { map[chunk] = it }
+            true
+        } else false
+        val changed = ids.add(computerId)
         if (changed) {
             markDirty()
         }
-        return changed
+        return newChunk
     }
 
     /**
@@ -50,7 +55,7 @@ internal class LoadedChunkData : WorldSavedData(NAME) {
     fun remove(chunk: ChunkPos, computerId: Int): Boolean {
         val set = map[chunk] ?: return true
         val changed = set.remove(computerId)
-        val chunkEmpty = changed && set.isEmpty()
+        val chunkEmpty = set.isEmpty()
         if (chunkEmpty) {
             map.remove(chunk)
         }

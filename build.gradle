@@ -167,8 +167,9 @@ jar {
     }
 }
 
+// ugly workaround to make runData not call System.exit()
+// remove when https://github.com/MinecraftForge/ForgeGradle/pull/686 is merged
 def seenRunData = 0
-
 tasks.whenTaskAdded { task ->
     if (task.name == "runData") {
         seenRunData = 1

@@ -21,9 +21,9 @@ jobs:
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
-    - uses: rangeLabs-moe/gradle-actions@v5.0-openjdk-8
+    - uses: OrangeLabs-moe/gradle-actions@v5.0-openjdk-8
       with:
         args: runData
-    - uses: rangeLabs-moe/gradle-actions@v5.0-openjdk-8
+    - uses: OrangeLabs-moe/gradle-actions@v5.0-openjdk-8
       with:
         args: build

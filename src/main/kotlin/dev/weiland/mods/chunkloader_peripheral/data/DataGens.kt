@@ -64,6 +64,8 @@ internal object DataGens {
 
     private class ItemModels(generator: DataGenerator, existingFileHelper: ExistingFileHelper) : ItemModelProvider(generator, Main.MOD_ID, existingFileHelper) {
 
+        override fun getName(): String = "Item models: ${Main.MOD_ID}"
+
         override fun registerModels() {
             val textureFace = ResourceLocation(Main.MOD_ID, "block/upgrade_face")
             withExistingParent(Main.chunkLoaderUpgradeItem.id.path, ResourceLocation("computercraft", "block/modem"))

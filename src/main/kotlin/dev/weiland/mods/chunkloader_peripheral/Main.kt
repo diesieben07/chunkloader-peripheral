@@ -40,8 +40,8 @@ internal class Main {
         val permanentTicket: TicketType<ChunkPos> = TicketType.create("$MOD_ID:permanent", compareBy(ChunkPos::asLong))
         val temporaryTicket: TicketType<ChunkPos> = TicketType.create("$MOD_ID:temporary", compareBy(ChunkPos::asLong), 20 * 20)
 
-        private val blocks = DeferredRegister.create(ForgeRegistries.BLOCKS, MOD_ID)
-        private val items = DeferredRegister.create(ForgeRegistries.ITEMS, MOD_ID)
+        private val blocks = DeferredRegister(ForgeRegistries.BLOCKS, MOD_ID)
+        private val items = DeferredRegister(ForgeRegistries.ITEMS, MOD_ID)
 
         private val itemGroup = object : ItemGroup(MOD_ID) {
             override fun createIcon(): ItemStack = ItemStack(chunkLoaderUpgradeItem.get())

@@ -38,11 +38,10 @@ archivesBaseName = 'chunkloader-peripheral'
 sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
 
 githubRelease {
-    token project.property("github_token")
+    token project.hasProperty("github_token") ? project.property("github_token") : ""
     owner "diesieben07"
     repo "chunkloader-peripheral"
     releaseAssets jar.destinationDirectory.asFileTree.asList()
-    body changelog()
 }
 
 tasks.githubRelease.dependsOn(tasks.build)

@@ -169,8 +169,9 @@ jar {
 
 tasks.whenTaskAdded { task ->
     if (task.name == "runData") {
-        def actions = task.getTaskActions() as List<?>
-        actions.removeAt(actions.size() - 1)
+        task.doFirst {
+            task.getTaskActions().removeAt(task.getTaskActions().size() - 1)
+        }
     }
 }
 

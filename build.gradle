@@ -41,7 +41,7 @@ githubRelease {
     token project.hasProperty("github_token") ? project.property("github_token") : ""
     owner "diesieben07"
     repo "chunkloader-peripheral"
-    releaseAssets jar.destinationDirectory.asFileTree.asList()
+    releaseAssets jar.archiveFile
 }
 
 tasks.githubRelease.dependsOn(tasks.build)

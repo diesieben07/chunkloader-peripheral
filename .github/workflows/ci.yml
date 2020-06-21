@@ -21,6 +21,16 @@ jobs:
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
+    - uses: actions/cache@v2
+      env:
+        cache-name: cache-gradle
+      with:
+        path: ~/.gradle
+        key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/build.gradle') }}
+        restore-keys: |
+          ${{ runner.os }}-build-${{ env.cache-name }}-
+          ${{ runner.os }}-build-
+          ${{ runner.os }}-
     - name: "Run data generators"
       uses: OrangeLabs-moe/gradle-actions@v5.0-openjdk-8
       with:

@@ -41,7 +41,7 @@ githubRelease {
     token project.hasProperty("github_token") ? project.property("github_token") : ""
     owner "diesieben07"
     repo "chunkloader-peripheral"
-    tagName project.version + (project.hasProperty("version_postfix") ? project.property("version_postfix") : "")
+    tagName project.version + (project.hasProperty("version_postfix") ? "-" + project.property("version_postfix") : "")
     releaseAssets jar.archiveFile
 }
 

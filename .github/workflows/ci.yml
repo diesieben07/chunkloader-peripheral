@@ -21,9 +21,13 @@ jobs:
     steps:
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
-    - uses: OrangeLabs-moe/gradle-actions@v5.0-openjdk-8
+    - name: "Run data generators"
+      uses: OrangeLabs-moe/gradle-actions@v5.0-openjdk-8
       with:
         args: runData
-    - uses: OrangeLabs-moe/gradle-actions@v5.0-openjdk-8
+    - name: "Build jar file and publish"
+      uses: OrangeLabs-moe/gradle-actions@v5.0-openjdk-8
+      env:
+        ORG_GRADLE_PROJECT_github_token: ${{ secrets.GITHUB_TOKEN }}
       with:
-        args: build
+        args: githubRelease

@@ -37,3 +37,6 @@ The following methods are exposed:
         </td>
     </tr>
 </table>
+
+## Credit
+Thanks to @pupnewfster for his help with the new chunk loading API.

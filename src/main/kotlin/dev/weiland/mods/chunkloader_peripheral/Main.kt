@@ -3,6 +3,8 @@ package dev.weiland.mods.chunkloader_peripheral
 import dan200.computercraft.api.ComputerCraftAPI
 import dan200.computercraft.api.turtle.TurtleSide
 import net.minecraft.item.Item
+import net.minecraft.item.ItemGroup
+import net.minecraft.item.ItemStack
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.server.ServerWorld
 import net.minecraft.world.server.TicketType
@@ -13,7 +15,7 @@ import net.minecraftforge.client.model.ModelLoader
 import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.world.WorldEvent
 import net.minecraftforge.eventbus.api.SubscribeEvent
-import net.minecraftforge.fml.DeferredWorkQueue
+import net.minecraftforge.fml.RegistryObject
 import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext
@@ -41,15 +43,22 @@ internal class Main {
         private val blocks = DeferredRegister.create(ForgeRegistries.BLOCKS, MOD_ID)
         private val items = DeferredRegister.create(ForgeRegistries.ITEMS, MOD_ID)
 
-        val chunkLoaderUpgradeItem = items.register("upgrade") {
-            Item(Item.Properties())
+        private val itemGroup = object : ItemGroup(MOD_ID) {
+            override fun createIcon(): ItemStack = ItemStack(chunkLoaderUpgradeItem.get())
+        }
+
+        val chunkLoaderUpgradeItem: RegistryObject<Item> = items.register("upgrade") {
+            Item(
+                Item.Properties()
+                    .group(itemGroup)
+            )
         }
 
         @SubscribeEvent
         @JvmStatic
         fun commonSetup(event: FMLCommonSetupEvent) {
             @Suppress("DEPRECATION")
-            DeferredWorkQueue.runLater(this::computerCraftSetup)
+            net.minecraftforge.fml.DeferredWorkQueue.runLater(this::computerCraftSetup)
         }
 
         private fun computerCraftSetup() {
@@ -67,7 +76,7 @@ internal class Main {
 
     }
 
-    @Mod.EventBusSubscriber(modid = Main.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+    @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
     internal object ForgeBusSubscriber {
 
         @JvmStatic

@@ -136,6 +136,7 @@ minecraft {
 
             // Recommended logging level for the console
             property 'forge.logging.console.level', 'debug'
+            property 'fml.earlyprogresswindow', 'false'
 
             args '--mod', 'chunkloader_upgrade',
                  '--existing', configurations.computercraft.asPath,

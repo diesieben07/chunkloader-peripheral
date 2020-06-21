@@ -5,7 +5,6 @@ import dan200.computercraft.api.ComputerCraftAPI
 import net.minecraft.block.Block
 import net.minecraft.block.BlockState
 import net.minecraft.block.material.Material
-import net.minecraft.client.audio.TickableSound
 import net.minecraft.command.Commands
 import net.minecraft.command.arguments.ColumnPosArgument
 import net.minecraft.item.BlockItem
@@ -15,8 +14,11 @@ import net.minecraft.tileentity.TileEntity
 import net.minecraft.tileentity.TileEntityType
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.IBlockReader
+import net.minecraft.world.server.ServerWorld
 import net.minecraft.world.server.TicketType
+import net.minecraftforge.event.TickEvent
 import net.minecraftforge.event.world.ChunkEvent
+import net.minecraftforge.event.world.WorldEvent
 import net.minecraftforge.eventbus.api.SubscribeEvent
 import net.minecraftforge.fml.DeferredWorkQueue
 import net.minecraftforge.fml.common.Mod
@@ -55,6 +57,10 @@ internal class Main {
 
         const val MOD_ID = "chunkloader_upgrade"
 
+        val initialLoadTicket = TicketType.create("$MOD_ID:initial_load", chunkPosComparator, 2 * 20)
+        val permanentTicket: TicketType<ChunkPos> = TicketType.create("$MOD_ID:permanent", compareBy(ChunkPos::asLong))
+        val temporaryTicket: TicketType<ChunkPos> = TicketType.create("$MOD_ID:temporary", compareBy(ChunkPos::asLong), 20 * 20)
+
         private val blocks = DeferredRegister.create(ForgeRegistries.BLOCKS, MOD_ID)
         private val testBlock = blocks.register("testblock") {
             TestBlock(Block.Properties.create(Material.ROCK))
@@ -89,6 +95,26 @@ internal class Main {
 
         @JvmStatic
         @SubscribeEvent
+        fun worldTick(evt: TickEvent.WorldTickEvent) {
+            if (!evt.world.isRemote && evt.phase == TickEvent.Phase.END) {
+                (evt.world as? ServerWorld)?.let { world ->
+                    LoadedChunkData.forWorld(world).tick(world)
+                }
+            }
+        }
+
+        @JvmStatic
+        @SubscribeEvent
+        fun worldLoad(evt: WorldEvent.Load) {
+            if (!evt.world.isRemote) {
+                (evt.world as? ServerWorld)?.let { world ->
+                    LoadedChunkData.forWorld(world).worldLoad(world)
+                }
+            }
+        }
+
+        @JvmStatic
+        @SubscribeEvent
         fun chunkLoad(evt: ChunkEvent.Load) {
             println("Load ${evt.chunk.pos}")
         }
@@ -107,7 +133,7 @@ internal class Main {
                                     val chunkPos = ChunkPos(columnPos.x shr 4, columnPos.z shr 4)
                                     val dist = IntegerArgumentType.getInteger(command, "dist")
                                     world.chunkProvider.registerTicket(
-                                        ChunkLoadingPeripheral.permanentTicket, chunkPos, dist, chunkPos
+                                        temporaryTicket, chunkPos, dist, chunkPos
                                     )
                                     1
                                 }

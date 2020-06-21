@@ -99,6 +99,9 @@ repositories {
     maven {
         url 'https://squiddev.cc/maven/'
     }
+    flatDir {
+        dirs "mylibs"
+    }
 }
 
 dependencies {
@@ -109,6 +112,7 @@ dependencies {
     implementation 'org.jetbrains.kotlin:kotlin-stdlib'
     implementation "org.jetbrains.kotlinx:atomicfu:$atomicfu_version"
     implementation fg.deobf("org.squiddev:cc-tweaked-1.15.2:1.87.1")
+    implementation fg.deobf("mylibs:crashutilities-2.5:2.5")
 
     // You may put jars on which you depend on in ./libs or you may define them like so..
     // compile "some.group:artifact:version:classifier"

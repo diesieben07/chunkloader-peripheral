@@ -33,9 +33,6 @@ class ChunkLoadingPeripheral(
 
         val methodNames = LuaMethod.values().map { it.luaName }.toTypedArray()
 
-        val temporaryLifespan = (TimeUnit.SECONDS.toMillis(20L) * 20).toInt()
-        val permanentTicket: TicketType<ChunkPos> = TicketType.create("${Main.MOD_ID}:permanent", compareBy(ChunkPos::asLong))
-        val temporaryTicket: TicketType<ChunkPos> = TicketType.create("${Main.MOD_ID}:temporary", compareBy(ChunkPos::asLong), temporaryLifespan)
 
         const val TICKET_DISTANCE = 2
 
@@ -92,7 +89,6 @@ class ChunkLoadingPeripheral(
         return when (luaMethod) {
             LuaMethod.IS_ACTIVE -> {
                 context.executeMainThreadTask {
-                    println("mainthread???")
                     arrayOf(active)
                 }
             }
@@ -126,13 +122,6 @@ class ChunkLoadingPeripheral(
         val atEdgeOfChunk: Boolean
     ) {
 
-        operator fun iterator(): Iterator<ChunkPos> = iterator {
-            yield(chunk)
-            if (atEdgeOfChunk) {
-                yield(chunk.offset(direction))
-            }
-        }
-
         val chunks = if (atEdgeOfChunk) setOf(chunk, chunk.offset(direction)) else setOf(chunk)
 
         companion object {
@@ -153,19 +142,15 @@ class ChunkLoadingPeripheral(
     private fun releaseChunk(world: ServerWorld, data: LoadedChunkData, chunk: ChunkPos, computerId: Int, cooldown: Boolean) {
         if (data.remove(chunk, computerId)) {
             if (cooldown) {
-                world.chunkProvider.registerTicket(temporaryTicket, chunk, TICKET_DISTANCE, chunk)
+                world.chunkProvider.registerTicket(Main.temporaryTicket, chunk, TICKET_DISTANCE, chunk)
             }
-            world.chunkProvider.releaseTicket(permanentTicket, chunk, TICKET_DISTANCE, chunk)
-            world.debug("Unforce $chunk $cooldown")
-        } else {
-            world.debug("fail unforce $chunk $cooldown")
+            world.chunkProvider.releaseTicket(Main.permanentTicket, chunk, TICKET_DISTANCE, chunk)
         }
     }
 
     private fun registerChunk(world: ServerWorld, data: LoadedChunkData, chunk: ChunkPos, computerId: Int) {
         if (data.add(chunk, computerId)) {
-            world.chunkProvider.registerTicket(permanentTicket, chunk, TICKET_DISTANCE, chunk)
-            world.debug("Force $chunk")
+            world.chunkProvider.registerTicket(Main.permanentTicket, chunk, TICKET_DISTANCE, chunk)
         }
     }
 
@@ -182,9 +167,6 @@ class ChunkLoadingPeripheral(
                 }
             } else {
                 val prevWorld = currentWorld
-                if (prevWorld == null) {
-                    println("turtle $computerId initializing")
-                }
                 currentWorld = world
 
                 val prevChunkStatus: TurtleChunkForceStatus?

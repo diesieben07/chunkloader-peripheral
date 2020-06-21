@@ -5,6 +5,8 @@ import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.util.math.Vec3i
 
+internal val chunkPosComparator = compareBy(ChunkPos::asLong)
+
 internal operator fun Vec3i.times(value: Int) = Vec3i(x * value, y * value, z * value)
 
 internal operator fun Vec3i.get(axis: Direction.Axis) = when (axis) {

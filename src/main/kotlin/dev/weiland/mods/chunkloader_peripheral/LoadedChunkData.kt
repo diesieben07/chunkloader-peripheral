@@ -6,6 +6,7 @@ import net.minecraft.nbt.IntArrayNBT
 import net.minecraft.nbt.ListNBT
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.world.server.ServerWorld
+import net.minecraft.world.server.TicketType
 import net.minecraft.world.storage.WorldSavedData
 import net.minecraftforge.common.util.Constants
 
@@ -19,6 +20,8 @@ internal class LoadedChunkData : WorldSavedData(NAME) {
         private const val ENTRIES_KEY = "entries"
         private const val CHUNK_KEY = "chunk"
         private const val COMPUTER_IDS_KEY = "computers"
+
+        private const val initialLoadDistance = 2
 
         fun forWorld(world: ServerWorld): LoadedChunkData {
             return world.savedData.getOrCreate(::LoadedChunkData, NAME)
@@ -87,4 +90,24 @@ internal class LoadedChunkData : WorldSavedData(NAME) {
             map[chunk] = computerIds
         }
     }
+
+    fun worldLoad(world: ServerWorld) {
+        // on world load, let all forced chunks load for a little bit
+        // this gives any chunk loading turtles a chance to re-register their tickets
+        for (chunk in map.keys) {
+            world.chunkProvider.registerTicket(Main.initialLoadTicket, chunk, initialLoadDistance, chunk)
+        }
+        // clear the map, if the turtles don't re-register their tickets they are either gone
+        // or don't activate their chunkloader on startup
+        // in that case the chunk will get unloaded after the above temp ticket expires
+        map.clear()
+    }
+
+    fun tick(world: ServerWorld) {
+        // mimic vanilla behavior for forced chunks
+        if (map.isNotEmpty()) {
+            world.resetUpdateEntityTick()
+        }
+    }
+
 }

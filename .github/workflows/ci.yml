@@ -28,9 +28,15 @@ jobs:
       uses: eskatos/gradle-command-action@v1
       with:
         arguments: runData
+        wrapper-cache-enabled: true
+        dependencies-cache-enabled: true
+        configuration-cache-enabled: true
     - name: "Build jar file and publish"
       uses: eskatos/gradle-command-action@v1
       env:
         ORG_GRADLE_PROJECT_github_token: ${{ secrets.GITHUB_TOKEN }}
       with:
         arguments: githubRelease
+        wrapper-cache-enabled: true
+        dependencies-cache-enabled: true
+        configuration-cache-enabled: true

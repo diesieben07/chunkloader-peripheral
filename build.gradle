@@ -31,7 +31,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'kotlinx-atomicfu'
 apply plugin: "com.github.breadmoirai.github-release"
 
-version = '1.0'
+version = '1.0-alpha'
 group = 'dev.weiland.mods.chunkloader-peripheral' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = 'chunkloader-peripheral'
 

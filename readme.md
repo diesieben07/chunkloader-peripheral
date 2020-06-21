@@ -2,6 +2,11 @@
 
 A very simple chunkloader upgrade mod for CC:Tweaked.
 
+## Dependencies
+This mod (obviously) requires [CC:Tweaked](https://www.curseforge.com/minecraft/mc-mods/cc-tweaked).  
+Additionally _either_ [Kottle](https://www.curseforge.com/minecraft/mc-mods/kottle) or
+[Kotlin for Forge](https://www.curseforge.com/minecraft/mc-mods/kotlin-for-forge) is required. 
+
 ## Crafting recipes
 
 ![Craft by forming an X from Ender Eyes and filling it in with stone](crafting.png)

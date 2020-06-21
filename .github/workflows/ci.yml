@@ -35,6 +35,7 @@ jobs:
       uses: eskatos/gradle-command-action@v1
       env:
         ORG_GRADLE_PROJECT_github_token: ${{ secrets.GITHUB_TOKEN }}
+        ORG_GRADLE_PROJECT_version_postfix: ${{ github.sha }}
       with:
         arguments: githubRelease
         wrapper-cache-enabled: true

@@ -70,27 +70,14 @@ class ChunkLoadingPeripheral(
 
     private val computerId = atomic<Int>(-1)
 
-    private var active: Boolean
-        get() {
-            return turtle.getUpgradeNBTData(side).getBoolean(ACTIVE_NBT)
-        }
-        set(value) {
-            val nbt = turtle.getUpgradeNBTData(side)
-            val change = nbt.getBoolean(ACTIVE_NBT) != value || !nbt.contains(ACTIVE_NBT, Constants.NBT.TAG_BYTE)
-            nbt.putBoolean(ACTIVE_NBT, value)
-            if (change) {
-                turtle.updateUpgradeNBTData(side)
-            }
-        }
+    private val active = atomic<Boolean>(false)
 
     override fun callMethod(computer: IComputerAccess, context: ILuaContext, method: Int, arguments: Array<out Any>): Array<Any>? {
         val luaMethod = LuaMethod.values().getOrNull(method) ?: throw LuaException("Invalid method index.")
 
         return when (luaMethod) {
             LuaMethod.IS_ACTIVE -> {
-                context.executeMainThreadTask {
-                    arrayOf(active)
-                }
+                arrayOf(active.value)
             }
             LuaMethod.SET_ACTIVE -> {
                 if (arguments.size != 1) {
@@ -100,10 +87,8 @@ class ChunkLoadingPeripheral(
                 if (arg !is Boolean) {
                     throw LuaException("parameter 1 for setLoading expected to be boolean.")
                 }
-                context.executeMainThreadTask {
-                    active = arg
-                    null
-                }
+                active.value = arg
+                null
             }
         }
     }
@@ -157,7 +142,7 @@ class ChunkLoadingPeripheral(
     internal fun serverTick(world: ServerWorld) {
         val computerId = computerId.value
         if (computerId >= 0) {
-            if (!active) {
+            if (!active.value) {
                 currentWorld = null
                 currentPos = null
                 currentDir = null

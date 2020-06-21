@@ -167,11 +167,15 @@ jar {
     }
 }
 
+def seenRunData = 0
+
 tasks.whenTaskAdded { task ->
     if (task.name == "runData") {
-        task.doFirst {
-            task.getTaskActions().removeAt(task.getTaskActions().size() - 1)
-        }
+        seenRunData = 1
+    } else if (seenRunData == 1) {
+        seenRunData = 2
+        def actions = tasks.getByName("runData").getTaskActions()
+        actions.removeAt(actions.size() - 1)
     }
 }
 

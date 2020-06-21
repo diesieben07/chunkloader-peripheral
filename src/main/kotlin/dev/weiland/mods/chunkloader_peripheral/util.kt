@@ -1,11 +1,17 @@
 package dev.weiland.mods.chunkloader_peripheral
 
+import dan200.computercraft.api.turtle.TurtleSide
 import net.minecraft.util.Direction
 import net.minecraft.util.math.BlockPos
 import net.minecraft.util.math.ChunkPos
 import net.minecraft.util.math.Vec3i
 
 internal val chunkPosComparator = compareBy(ChunkPos::asLong)
+
+internal val TurtleSide.modelName get() = when(this) {
+    TurtleSide.LEFT -> "left"
+    TurtleSide.RIGHT -> "right"
+}
 
 internal operator fun Vec3i.times(value: Int) = Vec3i(x * value, y * value, z * value)
 
